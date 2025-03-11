@@ -3,28 +3,30 @@ import urllib.request
 from abc import ABC, abstractmethod
 from bs4 import BeautifulSoup
 
+
 class BaseScraper(ABC):
     """Objeto que contiene el schema caracteristico de cada sitio"""
-    
+
     @abstractmethod
-    def find_price(self,soup):
+    def find_price(self, soup):
         pass
 
     @abstractmethod
-    def find_bills(self,soup):
+    def find_bills(self, soup):
         pass
 
     @abstractmethod
-    def find_rooms(self,soup):
+    def find_rooms(self, soup):
         pass
 
     @abstractmethod
-    def find_location(self,soup):
+    def find_location(self, soup):
         pass
 
     @abstractmethod
-    def find_size(self,soup):
+    def find_size(self, soup):
         pass
+
 
 class ZonaPropScraper(BaseScraper):
     def find_price(self, soup):
@@ -38,9 +40,9 @@ class ZonaPropScraper(BaseScraper):
             rent_price = price_parser(rent_price_string)
             return rent_price
         return None
-    
-    def find_bills(self,soup):
-        bills_span = soup.find("span",class_="price-expenses")
+
+    def find_bills(self, soup):
+        bills_span = soup.find("span", class_="price-expenses")
         if not bills_span:
             return None
         bills_string = bills_span.text.strip()
@@ -48,9 +50,8 @@ class ZonaPropScraper(BaseScraper):
         bills = price_parser(bills_string)
         return bills
 
-
-    def find_rooms(self,soup)->int:
-        rooms_h2 = soup.find("h2",class_="title-type-sup-property")
+    def find_rooms(self, soup) -> int:
+        rooms_h2 = soup.find("h2", class_="title-type-sup-property")
         if not rooms_h2:
             return None
         rooms_string = rooms_h2.text.strip()
@@ -58,9 +59,8 @@ class ZonaPropScraper(BaseScraper):
         rooms_string = rooms_string[0]
         rooms = int(rooms_string)
         return rooms
-        
 
-    def find_location(self,soup):
+    def find_location(self, soup):
         location_div = soup.find("div", class_="section-location-property")
 
         if location_div:
@@ -71,19 +71,19 @@ class ZonaPropScraper(BaseScraper):
             return location
         return None
 
-
-    def find_size(self,soup)->float:
-        size_h2 = soup.find("h2",class_="title-type-sup-property")
+    def find_size(self, soup) -> float:
+        size_h2 = soup.find("h2", class_="title-type-sup-property")
         if not size_h2:
             return None
         size_string = size_h2.text.strip()
         size_string = size_string.split("·")[1].strip()
-        size_string = size_string.replace("m²","")
+        size_string = size_string.replace("m²", "")
         size = float(size_string)
         return size
-    
-class ArgenPropScraper(BaseScraper):   
-    def find_price(self,soup):
+
+
+class ArgenPropScraper(BaseScraper):
+    def find_price(self, soup):
         price_p = soup.find("p", class_="titlebar__price")
         if not price_p:
             return None
@@ -91,8 +91,8 @@ class ArgenPropScraper(BaseScraper):
         rent_price = price_parser(rent_price_string)
         return rent_price
 
-    def find_bills(self,soup):
-        bills_p = soup.find("p",class_="titlebar__expenses")
+    def find_bills(self, soup):
+        bills_p = soup.find("p", class_="titlebar__expenses")
         if not bills_p:
             return None
         bills_string = bills_p.text.strip()
@@ -100,8 +100,8 @@ class ArgenPropScraper(BaseScraper):
         bills = price_parser(bills_string)
         return bills
 
-    def find_rooms(self,soup):
-        rooms_li = soup.find("li", attrs={"title":"Ambientes"})
+    def find_rooms(self, soup):
+        rooms_li = soup.find("li", attrs={"title": "Ambientes"})
 
         if rooms_li:
             rooms_p = rooms_li.find_all("p")[0]
@@ -115,15 +115,15 @@ class ArgenPropScraper(BaseScraper):
             return rooms
         return None
 
-    def find_location(self,soup):
-        location_h2 = soup.find("h2",class_="titlebar__address")
+    def find_location(self, soup):
+        location_h2 = soup.find("h2", class_="titlebar__address")
         if not location_h2:
             return None
         location_string = location_h2.text.strip()
         return location_string
 
-    def find_size(self,soup):
-        size_li = soup.find("li",attrs={"title":"Sup. cubierta"})
+    def find_size(self, soup):
+        size_li = soup.find("li", attrs={"title": "Sup. cubierta"})
         if size_li:
             size_p = size_li.find_all("p")[0]
             if not size_p:
@@ -133,7 +133,8 @@ class ArgenPropScraper(BaseScraper):
             return size
         return None
 
-def price_parser(price_string:str)->float:
+
+def price_parser(price_string: str) -> float:
     string_pre_processed = price_string.replace(" ", "")
     string_pre_processed = string_pre_processed.replace("$", "")
     string_pre_processed = string_pre_processed.replace(".", "")
@@ -141,13 +142,14 @@ def price_parser(price_string:str)->float:
     return price
 
 
-class Extractor():
+class Extractor:
     """Controlará la lógica de extraer info del sitio web"""
-    def __init__(self, url:str):
+
+    def __init__(self, url: str):
         self.url = url
         self.page = self._get_page()
         self.scraper = StrategyScraper(self.url).get_scraper()
-        self.soup = BeautifulSoup(self.page, 'html.parser')
+        self.soup = BeautifulSoup(self.page, "html.parser")
 
     def _get_page(self):
         headers = {
@@ -170,48 +172,52 @@ class Extractor():
 
     def get_price(self):
         price = self.scraper.find_price(self.soup)
+        if not price:
+            raise Exception(
+                f"No se pudo encontrar el precio de la propiedad, es posible que la estructura del sitio haya cambiado o que ya no esté disponible."
+            )
         return price
-    
+
     def get_bills(self):
         bills = self.scraper.find_bills(self.soup)
         return bills
-    
+
     def get_rooms(self):
         rooms = self.scraper.find_rooms(self.soup)
         return rooms
-    
+
     def get_location(self):
         location = self.scraper.find_location(self.soup)
         return location
-    
+
     def get_size(self):
         size = self.scraper.find_size(self.soup)
         return size
-    
+
     def get_data(self):
-        data={
+        data = {
             "price": self.get_price(),
             "bills": self.get_bills(),
             "rooms": self.get_rooms(),
             "location": self.get_location(),
             "size": self.get_size(),
-            "url": self.url
+            "url": self.url,
         }
         return data
-    
-class StrategyScraper():
+
+
+class StrategyScraper:
     PATTERNS = {
         r"https?://(www\.)?zonaprop\.com": ZonaPropScraper,
         r"https?://(www\.)?argenprop\.com": ArgenPropScraper,
     }
 
-    def __init__(self,url):
+    def __init__(self, url):
         self.url = url
 
     def get_scraper(self):
         for pattern, scraper in StrategyScraper.PATTERNS.items():
             if re.match(pattern, self.url):
                 return scraper()
-        
+
         raise ValueError("No hay un scraper registrado para esta URL.")
-    
